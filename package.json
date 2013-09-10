@@ -1,0 +1,27 @@
+{
+  "name": "nobi",
+  "version": "0.0.0",
+  "description": "Node port of itsdangerous python signer.",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyx/nobi.js/"
+  },
+  "keywords": [
+    "signing",
+    "authentication",
+    "hmac",
+    "digest"
+  ],
+  "author": "Cyril David",
+  "license": "BSD",
+  "dependencies": {
+    "scmp": "0.0.2"
+  },
+  "devDependencies": {
+    "tape": "~1.1.0"
+  }
+}
