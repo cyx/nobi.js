@@ -1,8 +1,8 @@
 var scmp = require('scmp');
 var crypto = require('crypto');
-var util = require('util');
+var format = require('util').format;
 
-// This is used as peg so the timestamps are smaller
+// This is used as the peg so the timestamps are smaller
 // than what they need to be.
 var EPOCH = 1293840000; // 2011/01/01 in UTC
 
@@ -25,48 +25,36 @@ function nobi(secret, opts) {
     var digestMethod = opts.digestMethod || 'sha1';
     var algorithm = hmacAlgorithm(digestMethod);
 
-    var self = {
-        sign: function (value) {
-            return [value, sep, this._signature(value)].join('');
-        },
+    function sign(value) {
+        return format('%s%s%s', value, sep,
+                      signature(algorithm, secret, salt, value));
+    }
 
-        unsign: function (data) {
-            var index = data.lastIndexOf(sep);
+    function unsign(data) {
+        var tuple = rsplit(data, sep);
 
-            if (index === -1) {
-                fail('BadSignature: No %s found in value', sep);
-            }
+        var val = tuple[0];
+        var sig = tuple[1];
 
-            var value = data.slice(0, index);
-            var sig = data.slice(index + 1, data.length);
-
-            if (scmp(sig, this._signature(value))) {
-                return value;
-            }
-
-            fail('BadSignature: Signature %s does not match', sig);
-        },
-
-        _deriveKey: function () {
-            return algorithm(secret, salt);
-        },
-
-        _signature: function (value) {
-            var key = this._deriveKey();
-            var sig = algorithm(key, value);
-
-            return new Buffer(sig).toString('base64');
+        if (scmp(sig, signature(algorithm, secret, salt, val))) {
+            return val;
         }
+
+        fail('BadSignature: Signature appears to be tampered with');
+    }
+
+    return {
+        sign: sign,
+        unsign: unsign
     };
-
-    return self;
-
 }
 
 // Usage:
 //
 //     var signer = nobi.timestampSigner('my secret');
-//     signer.sign('string-to-sign');
+//     var signed = signer.sign('string-to-sign');
+//
+//     signer.unsign(signed, { maxAge: 60 }) // 60 ms
 //
 // Options:
 //
@@ -87,38 +75,80 @@ function timestampSigner(secret, opts) {
         digestMethod: digestMethod
     });
 
-    var self = {
-        sign: function (value) {
-            var timestamp = b64encode(String(getTimestamp()));
+    function sign(data) {
+        var timestamp = b64encode(String(getTimestamp()));
+        var value = format('%s%s%s', data, sep, timestamp);
 
-            value = [value, sep, timestamp].join('');
+        return signer.sign(value);
+    }
 
-            return [value, sep, signer._signature(value)].join('');
-        },
+    function unsign(data, opts) {
+        // the default maxAge is 60 seconds
+        var maxAge = (opts && opts.maxAge) || 60000;
 
-        unsign: function (data, opts) {
-            var maxAge = (opts && opts.maxAge) || 60000;
-            var unsigned = signer.unsign(data);
-            var index = unsigned.lastIndexOf(sep);
+        // unsign the data. given something like:
+        // 
+        //     1.MTMMA==.PMO6Px==
+        //
+        // we get
+        //
+        //     1.MTMMA==
+        //
+        // as the unsigned value assuming it was unsigned
+        // properly.
+        var unsigned = signer.unsign(data);
 
-            if (index === -1) {
-                fail('BadSignature: No %s found in value', sep);
-            }
+        // We proceed to split the value and timestamp
+        // here. So given:
+        //
+        //     1.MTMMA==
+        //
+        // The tuple will be:
+        //
+        //     ['1', 'MTMMA==']
+        //
+        var tuple = rsplit(unsigned, sep);
 
-            var value = unsigned.slice(0, index);
-            var ts = unsigned.slice(index + 1, unsigned.length);
-            var timestamp = Number(b64decode(ts));
-            var age = getTimestamp() - timestamp;
+        // We call the values as `val` and `ts` henceforth.
+        var val = tuple[0];
+        var ts = tuple[1];
 
-            if (age > maxAge) {
-                fail('BadSignature: Signature Expired', value);
-            }
+        // And properly convert the value of `ts` which is
+        // originally base64 encoded into a Number.
+        var timestamp = Number(b64decode(ts));
 
-            return value;
+        var age = getTimestamp() - timestamp;
+
+        if (age > maxAge) {
+            fail('BadSignature: Signature Expired');
         }
-    };
 
-    return self;
+        return val;
+    }
+
+    return {
+        sign: sign,
+        unsign: unsign
+    };
+}
+
+// private functions
+
+function rsplit(string, separator) {
+    var index = string.lastIndexOf(separator);
+
+    if (index === -1) {
+        fail('BadSignature: Separator not found');
+    }
+
+    return [string.slice(0, index), string.slice(index + 1, string.length)];
+}
+
+function signature(algorithm, secret, salt, value) {
+    var key = algorithm(secret, salt);
+    var sig = algorithm(key, value);
+
+    return b64encode(sig);
 }
 
 function getTimestamp() {
@@ -146,10 +176,14 @@ function b64decode(string) {
 }
 
 function fail() {
-    throw new Error(util.format.apply(null, arguments));
+    throw new Error(format.apply(null, arguments));
 }
 
+// Since `nobi` is the default usage, we just
+// piggy back on it for the timestampSigner.
 nobi.timestampSigner = timestampSigner;
 
+// We export the main `nobi` function together with
+// the piggybacked functions.
 module.exports = nobi;
 

@@ -1,56 +1,59 @@
 var test = require('tape');
 var nobi = require('../');
 
-test('nobi.signer', function (t) {
-    var signer = nobi('my secret');
+var signer = nobi('my secret');
+
+test('basic: sign + unsign', function (t) {
+    t.plan(1);
+
     var signed = signer.sign('1');
 
-    t.plan(1);
     t.equal('1', signer.unsign(signed));
 });
 
-test('nobi.signer invalid string', function (t) {
-    var signer = nobi('my secret');
-
+test('basic: unsign invalid string', function (t) {
     t.plan(1);
 
-    var err;
-
-    try {
+    t.throws(function () {
         signer.unsign('foobar');
-    }
-    catch (e) {
-        err = e;
-    }
-
-    t.ok(/Error: BadSignature/.test(err), 'bad signature check');
+    }, /BadSignature/);
 });
 
-test('nobi.signer tampered signed string', function (t) {
-    var signer = nobi('my secret');
+test('basic: unsign tampered string', function (t) {
+    t.plan(1);
+
     var signed = signer.sign('1');
 
-    t.plan(1);
-
-    var err;
-
-    try {
-        signer.unsign(signed + ' ');
-    }
-    catch (e) {
-        err = e;
-    }
-
-    t.ok(/Error: BadSignature/.test(err), 'tampered: bad signature');
+    t.throws(function () {
+        signer.unsign(signed + 'tamper');
+    }, /BadSignature/);
 });
+
+var timestampSigner = nobi.timestampSigner('my secret');
 
 test('nobi.timestamp signer', function (t) {
-    var signer = nobi.timestampSigner('my secret');
-    var signed = signer.sign('1');
+    var signed = timestampSigner.sign('1');
 
     t.plan(1);
+    t.equal('1', timestampSigner.unsign(signed, { maxAge: 1 }));
+});
 
-    t.equal('1', signer.unsign(signed, { maxAge: 1 }));
+test('nobi.timestamp invalid string', function (t) {
+    t.plan(1);
+
+    t.throws(function () {
+        timestampSigner.unsign('foobar', { maxAge: 1 });
+    }, /BadSignature/);
+});
+
+test('nobi.timestamp tampered string', function (t) {
+    t.plan(1);
+
+    var signed = timestampSigner.sign('1');
+
+    t.throws(function () {
+        timestampSigner.unsign(signed + 'tamper', { maxAge: 1 });
+    }, /BadSignature/);
 });
 
 test('nobi.timestamp signer expired', function (t) {
@@ -60,11 +63,9 @@ test('nobi.timestamp signer expired', function (t) {
     t.plan(1);
 
     setTimeout(function () {
-        try {
-            t.equal('1', signer.unsign(signed, { maxAge: 1 }));
-        } catch (err) {
-            t.ok(/Error: BadSignature/.test(err), 'expired');
-        }
+        t.throws(function () {
+            signer.unsign(signed, { maxAge: 1 });
+        }, /BadSignature/);
     }, 5);
 });
 

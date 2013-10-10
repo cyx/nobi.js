@@ -4,7 +4,7 @@
   "description": "Node port of itsdangerous python signer.",
   "main": "index.js",
   "scripts": {
-    "test": "npm test"
+    "test": "node test/nobi.js"
   },
   "repository": {
     "type": "git",
