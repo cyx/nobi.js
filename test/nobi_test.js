@@ -3,6 +3,15 @@ var nobi = require('../');
 
 var signer = nobi('my secret');
 
+test('match itsdangerous signer output', function (t) {
+    var itsdangerousSigner = nobi('ahl5AhV3ie', { salt: 'salt'});
+    t.plan(1);
+
+    var signed = itsdangerousSigner.sign('hello');
+
+    t.equal('hello.g_WbbnD5a50gIziE2uk735yoOOo', signed);
+});
+
 test('basic: sign + unsign', function (t) {
     t.plan(1);
 
@@ -68,4 +77,3 @@ test('nobi.timestamp signer expired', function (t) {
         }, /BadSignature/);
     }, 5);
 });
-

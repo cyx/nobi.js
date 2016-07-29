@@ -1,6 +1,7 @@
 var scmp = require('scmp');
 var crypto = require('crypto');
 var format = require('util').format;
+var URLSafeBase64 = require('urlsafe-base64');
 
 // This is used as the peg so the timestamps are smaller
 // than what they need to be.
@@ -87,7 +88,7 @@ function timestampSigner(secret, opts) {
         var maxAge = (opts && opts.maxAge) || 60000;
 
         // unsign the data. given something like:
-        // 
+        //
         //     1.MTMMA==.PMO6Px==
         //
         // we get
@@ -161,18 +162,18 @@ function hmacAlgorithm(digestMethod) {
 
         hmac.update(data);
 
-        return hmac.digest('binary');
+        return hmac.digest();
     }
 
     return signature;
 }
 
 function b64encode(string) {
-    return new Buffer(string).toString('base64');
+    return URLSafeBase64.encode(new Buffer(string));
 }
 
 function b64decode(string) {
-    return new Buffer(string, 'base64').toString();
+    return URLSafeBase64.decode(string).toString();
 }
 
 function fail() {
@@ -186,4 +187,3 @@ nobi.timestampSigner = timestampSigner;
 // We export the main `nobi` function together with
 // the piggybacked functions.
 module.exports = nobi;
-
