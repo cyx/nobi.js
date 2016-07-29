@@ -19,7 +19,8 @@
   "author": "Cyril David",
   "license": "BSD",
   "dependencies": {
-    "scmp": "0.0.2"
+    "scmp": "0.0.2",
+    "urlsafe-base64": "^1.0.0"
   },
   "devDependencies": {
     "tape": "~1.1.0"
